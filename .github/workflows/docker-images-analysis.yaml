@@ -1,0 +1,40 @@
+name: Docker Images Analysis
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**/Dockerfile'
+      - '.github/workflows/docker-images-analysis.yaml'
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ main ]
+    paths:
+      - '**/Dockerfile'
+      - '.github/workflows/docker-images-analysis.yaml'
+  schedule:
+    - cron: '19 11 * * 6'
+
+jobs:
+  distribution-docker-image-scan:
+      runs-on: ubuntu-latest
+      steps:
+      - uses: actions/checkout@v2
+      - name: Build the Docker image
+        run: docker build . --file services/distribution/Dockerfile --tag cwa-server/distribution-image:latest
+      - uses: anchore/scan-action@main
+        with:
+          image: "cwa-server/distribution-image:latest"
+          fail-build: false
+          debug: false
+          acs-report-enable: true
+          severity-cutoff: "High"
+      - name: anchore inline scan JSON results
+        run: for j in `ls ./anchore-reports/*.json`; do echo "---- ${j} ----"; cat ${j}; echo; done
+      - name: Prepare SARIF report for distribution Dockerfile
+        run: |
+          cat results.sarif
+      - name: upload Anchore scan SARIF report
+        uses: github/codeql-action/upload-sarif@main
+        with:
+          sarif_file: results.sarif
+  
