@@ -37,4 +37,27 @@ jobs:
         uses: github/codeql-action/upload-sarif@main
         with:
           sarif_file: results.sarif
+  submission-docker-image-scan:
+      runs-on: ubuntu-latest
+      steps:
+      - uses: actions/checkout@v2
+      - name: Build the Docker image
+        run: docker build . --file services/submission/Dockerfile --tag cwa-server/submission-image:latest
+      - uses: anchore/scan-action@main
+        with:
+          image: "cwa-server/submission-image:latest"
+          fail-build: false
+          acs-report-enable: true
+          debug: false
+          severity-cutoff: "High"
+      - name: anchore inline scan JSON results
+        run: for j in `ls ./anchore-reports/*.json`; do echo "---- ${j} ----"; cat ${j}; echo; done
+      - name: Prepare SARIF report for submission dockerfile
+        run: |
+          cat results.sarif
+      - name: upload Anchore scan SARIF report
+        uses: github/codeql-action/upload-sarif@main
+        with:
+          sarif_file: results.sarif
+
   
